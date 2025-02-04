@@ -16,19 +16,19 @@ import java.util.stream.IntStream;
 public class TreeInsertNewBenchmark {
 
     @Benchmark
-    public List<Boolean> insertWithBTree12(BenchmarkState state) {
+    public List<Boolean> insertWithBTree1000(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.add(state.set12.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.add(state.btree1000.add(i)));
 
       return result;
     }
 
     @Benchmark
-    public List<Boolean> insertWithBTBTree8(BenchmarkState state) {
+    public List<Boolean> insertWithBTBTree100(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.add(state.set8.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.add(state.btree100.add(i)));
 
       return result;
     }
@@ -37,7 +37,7 @@ public class TreeInsertNewBenchmark {
     public List<Boolean> insertWithBTree10(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.add(state.set10.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.add(state.btree10.add(i)));
 
       return result;
     }
@@ -46,7 +46,7 @@ public class TreeInsertNewBenchmark {
     public List<Boolean> insertWithJavaTree(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.add(state.javaSet.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.add(state.javaTree.add(i)));
 
       return result;
     }

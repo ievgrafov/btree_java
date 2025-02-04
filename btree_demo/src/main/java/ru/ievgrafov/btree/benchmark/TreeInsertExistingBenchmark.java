@@ -15,19 +15,19 @@ import java.util.stream.IntStream;
 @Fork(2) // Run in 2 separate JVM processes
 public class TreeInsertExistingBenchmark {
     @Benchmark
-    public List<Boolean> insertWithBTree12(BenchmarkState state) {
+    public List<Boolean> insertWithBTree1000(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(50000, 90000).forEach((i) -> result.add(state.set12.add(i)));
+      IntStream.range(50000, 90000).forEach((i) -> result.add(state.btree1000.add(i)));
 
       return result;
     }
 
     @Benchmark
-    public List<Boolean> insertWithBTBTree8(BenchmarkState state) {
+    public List<Boolean> insertWithBTBTree100(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(50000, 90000).forEach((i) -> result.add(state.set8.add(i)));
+      IntStream.range(50000, 90000).forEach((i) -> result.add(state.btree100.add(i)));
 
       return result;
     }
@@ -36,7 +36,7 @@ public class TreeInsertExistingBenchmark {
     public List<Boolean> insertWithBTree10(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(50000, 90000).forEach((i) -> result.add(state.set10.add(i)));
+      IntStream.range(50000, 90000).forEach((i) -> result.add(state.btree10.add(i)));
 
       return result;
     }
@@ -45,7 +45,7 @@ public class TreeInsertExistingBenchmark {
     public List<Boolean> insertWithJavaTree(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(50000, 90000).forEach((i) -> result.add(state.javaSet.add(i)));
+      IntStream.range(50000, 90000).forEach((i) -> result.add(state.javaTree.add(i)));
 
       return result;
     }

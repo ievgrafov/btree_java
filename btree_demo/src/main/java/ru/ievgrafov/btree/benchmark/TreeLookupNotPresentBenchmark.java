@@ -15,19 +15,19 @@ import java.util.stream.IntStream;
 public class TreeLookupNotPresentBenchmark {
 
     @Benchmark
-    public List<Boolean> lookupWithBTree12(BenchmarkState state) {
+    public List<Boolean> lookupWithBTree1000(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.set12.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.btree1000.add(i)));
 
       return result;
     }
 
     @Benchmark
-    public List<Boolean> lookupWithBTBTree8(BenchmarkState state) {
+    public List<Boolean> lookupWithBTBTree100(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.set8.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.btree100.add(i)));
 
       return result;
     }
@@ -36,7 +36,7 @@ public class TreeLookupNotPresentBenchmark {
     public List<Boolean> lookupWithBTree10(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.set10.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.btree10.add(i)));
 
       return result;
     }
@@ -45,7 +45,7 @@ public class TreeLookupNotPresentBenchmark {
     public List<Boolean> lookupWithJavaTree(BenchmarkState state) {
       List<Boolean> result = new ArrayList<Boolean>();
 
-      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.javaSet.add(i)));
+      IntStream.range(150000, 190000).forEach((i) -> result.contains(state.javaTree.add(i)));
 
       return result;
     }
