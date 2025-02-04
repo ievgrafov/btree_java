@@ -42,17 +42,6 @@ public class BTreeSetTest {
     }
 
     @Test
-    public void testNodeSplitting() {
-        BTreeSet<Integer> set = new BTreeSet<>(2, intComparator);
-        // Insert 5 elements to force node splits (node capacity = 4)
-        for (int i = 1; i <= 5; i++) {
-            set.add(i);
-        }
-        assertTrue("Should contain elements after split", set.contains(3));
-        assertTrue("Should contain all inserted elements", set.contains(5));
-    }
-
-    @Test
     public void testCustomComparatorBehavior() {
         Comparator<String> caseInsensitive = String.CASE_INSENSITIVE_ORDER;
         BTreeSet<String> set = new BTreeSet<>(caseInsensitive);
@@ -83,14 +72,20 @@ public class BTreeSetTest {
         BTreeSet<Integer> set = new BTreeSet<Integer>(3, intComparator);
         TreeSet<Integer> javaSet = new TreeSet<Integer>(intComparator);
         Random generator = new Random();
+        int iterations = 5000;
 
-        for (int i = 0; i < 500; i++) {
-          Integer value = generator.nextInt(0, 1000);
+        for (int i = 0; i < iterations; i++) {
+          Integer value = generator.nextInt(0, iterations * 2);
           assertEquals("BTreeSet and TreeSet should respond same way on insert", set.add(value), javaSet.add(value));
         }
 
-        for (int i = 0; i < 500; i++) {
-          Integer value = generator.nextInt(0, 1000);
+        for (int i = 0; i < iterations; i++) {
+          Integer value = generator.nextInt(0, iterations * 2);
+          assertEquals("BTreeSet and TreeSet should respond same way on remove", set.remove(value), javaSet.remove(value));
+        }
+
+        for (int i = 0; i < iterations; i++) {
+          Integer value = generator.nextInt(0, iterations * 2);
           assertEquals("BTreeSet and TreeSet should respond same way on lookup", set.contains(value), javaSet.contains(value));
         }
     }

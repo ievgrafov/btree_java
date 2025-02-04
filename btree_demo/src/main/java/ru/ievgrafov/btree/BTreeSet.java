@@ -44,7 +44,9 @@ public class BTreeSet<E extends Object> {
     return recursiveContains(value, root);
   }
 
-  // public boolean remove(E value);
+  public boolean remove(E value) {
+    return recursiveRemove(value, root);
+  }
   // public E[] toArray();
 
   // Implementation
@@ -187,10 +189,68 @@ public class BTreeSet<E extends Object> {
   private boolean recursiveContains(E value, Node node) {
     int position = findPositionForNewValueInNode(value, node);
 
+    // Found you!
     if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) return true;
 
+    // We are at the leaf and didn't find element yet. It means it's not in the tree
     if (node.childrenCount == 0) return false;
 
     return recursiveContains(value, node.children[position]);
+  }
+
+  @SuppressWarnings("unchecked")
+  private boolean recursiveRemove(E value, Node node) {
+    int position = findPositionForNewValueInNode(value, node);
+
+    if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) {
+      // found element, should remove it now
+      removeValueFromNodeByIndex(node, position);
+      this.size -= 1;
+
+      return true;
+    }
+
+    // We are at the leaf and didn't find element yet. It means it's not in the tree
+    if (node.childrenCount == 0) {
+      return false;
+    }
+
+    return recursiveRemove(value, node.children[position]);
+  }
+
+  private void removeValueFromNodeByIndex(Node node, int index) {
+    if (node.childrenCount == 0) {
+      // If no children, simply drop the value by copying array without it
+      System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
+      node.valuesCount -= 1;
+
+      return;
+    }
+
+    // Need to find replacement for value in children
+    Node replacementNode = node.children[index];
+
+    // Corresponding child is already empty -> we can simply drop current value and child altogether
+    if (replacementNode.valuesCount == 0) {
+      System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
+      node.valuesCount -= 1;
+      System.arraycopy(node.children, index + 1, node.children, index, node.childrenCount - index - 1);
+      node.childrenCount -= 1;
+
+      return;
+    }
+
+    while (replacementNode.childrenCount > 0) {
+      Node nextReplacementNode = replacementNode.children[replacementNode.childrenCount - 1];
+      if (nextReplacementNode.valuesCount == 0) break;
+      replacementNode = nextReplacementNode;
+    }
+    node.values[index] = replacementNode.values[replacementNode.valuesCount - 1];
+    replacementNode.valuesCount -= 1;
+
+    if (replacementNode.childrenCount != 0) {
+      // it's not a leaf but rightmost child is empty which means we should drop it (last value has already been taken as replacement)
+      replacementNode.childrenCount -= 1;
+    }
   }
 }
