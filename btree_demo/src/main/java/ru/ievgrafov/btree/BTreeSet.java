@@ -1,8 +1,11 @@
 package ru.ievgrafov.btree;
 
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Set;
 
-public class BTreeSet<E extends Object> {
+public class BTreeSet<E> implements Set<E> {
   // Simple struct to contain one node
   public static class Node {
     public Object[] values;
@@ -53,11 +56,11 @@ public class BTreeSet<E extends Object> {
     return add(value, root, null);
   }
 
-  public boolean contains(E value) {
+  public boolean contains(Object value) {
     return contains(value, root);
   }
 
-  public boolean remove(E value) {
+  public boolean remove(Object value) {
     return remove(value, root);
   }
 
@@ -137,23 +140,25 @@ public class BTreeSet<E extends Object> {
   // Find position for a new value in a node
   @SuppressWarnings("unchecked")
   private int findPositionForValueInNode(E value, Node node) {
-    int newValuePosition = node.valuesCount;
-
-    if (newValuePosition == 0) return 0;
-
-    while (newValuePosition > 0) {
-      int compareResult =  compare((E)node.values[newValuePosition - 1], value);
-
-      // We found element itself, should return its position
-      if (compareResult == 0) return newValuePosition - 1;
-
-      // Left element is smaller than current one - should insert current one on current place
-      if (compareResult < 0) return newValuePosition;
-
-      newValuePosition--;
-    }
-
-    return newValuePosition;
+      int upperBound = node.valuesCount - 1;
+      int lowerBound = 0;
+      int currentPosition;
+    
+      while (upperBound >= lowerBound) {
+        currentPosition = (upperBound + lowerBound) / 2;
+        int compareResult = compare((E)node.values[currentPosition], value);
+    
+        if (compareResult == 0) {
+          // Found it!
+          return currentPosition;
+        } else if (compareResult > 0) {
+          upperBound = currentPosition - 1;
+        } else {
+          lowerBound = currentPosition + 1;
+        }
+      }
+    
+      return lowerBound;
   }
 
   private void insertValueInArray(Object[] arr, int currentLength, Object value, int position) {
@@ -194,11 +199,11 @@ public class BTreeSet<E extends Object> {
   }
 
   @SuppressWarnings("unchecked")
-  private boolean contains(E value, Node node) {
-    int position = findPositionForValueInNode(value, node);
+  private boolean contains(Object value, Node node) {
+    int position = findPositionForValueInNode((E)value, node);
 
     // Found you!
-    if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) return true;
+    if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) return true;
 
     // We are at the leaf and didn't find element yet. It means it's not in the tree
     if (node.childrenCount == 0) return false;
@@ -207,10 +212,10 @@ public class BTreeSet<E extends Object> {
   }
 
   @SuppressWarnings("unchecked")
-  private boolean remove(E value, Node node) {
-    int position = findPositionForValueInNode(value, node);
+  private boolean remove(Object value, Node node) {
+    int position = findPositionForValueInNode((E)value, node);
 
-    if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) {
+    if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) {
       // found element, should remove it now
       removeValueFromNodeByIndex(node, position);
       this.size--;
@@ -263,5 +268,53 @@ public class BTreeSet<E extends Object> {
       // it's not a leaf but rightmost child is empty which means we should drop it (last value has already been taken as replacement)
       replacementNode.childrenCount--;
     }
+  }
+
+  @Override
+  public boolean addAll(Collection<? extends E> c) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'addAll'");
+  }
+
+  @Override
+  public void clear() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'clear'");
+  }
+
+  @Override
+  public boolean containsAll(Collection<?> c) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'containsAll'");
+  }
+
+  @Override
+  public Iterator<E> iterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'iterator'");
+  }
+
+  @Override
+  public boolean removeAll(Collection<?> c) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'removeAll'");
+  }
+
+  @Override
+  public boolean retainAll(Collection<?> c) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'retainAll'");
+  }
+
+  @Override
+  public Object[] toArray() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'toArray'");
+  }
+
+  @Override
+  public <T> T[] toArray(T[] arg0) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'toArray'");
   }
 }

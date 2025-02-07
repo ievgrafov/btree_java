@@ -72,7 +72,7 @@ public class BTreeSetTest {
         BTreeSet<Integer> set = new BTreeSet<Integer>(30, intComparator);
         TreeSet<Integer> javaSet = new TreeSet<Integer>(intComparator);
         Random generator = new Random(1);
-        int iterations = 5000;
+        int iterations = 50000;
 
         for (int i = 0; i < iterations; i++) {
           Integer value = generator.nextInt(0, iterations * 2);
