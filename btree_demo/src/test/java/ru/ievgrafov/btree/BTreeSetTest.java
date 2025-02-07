@@ -69,25 +69,27 @@ public class BTreeSetTest {
 
     @Test
     public void testTreeBehavesLikeTreeSet() {
-        BTreeSet<Integer> set = new BTreeSet<Integer>(3, intComparator);
+        BTreeSet<Integer> set = new BTreeSet<Integer>(30, intComparator);
         TreeSet<Integer> javaSet = new TreeSet<Integer>(intComparator);
-        Random generator = new Random();
+        Random generator = new Random(1);
         int iterations = 5000;
 
         for (int i = 0; i < iterations; i++) {
           Integer value = generator.nextInt(0, iterations * 2);
-          assertEquals("BTreeSet and TreeSet should respond same way on insert", set.add(value), javaSet.add(value));
+          assertEquals("BTreeSet and TreeSet should respond same way on insert", javaSet.add(value), set.add(value));
         }
 
         for (int i = 0; i < iterations; i++) {
           Integer value = generator.nextInt(0, iterations * 2);
-          assertEquals("BTreeSet and TreeSet should respond same way on remove", set.remove(value), javaSet.remove(value));
+          assertEquals("BTreeSet and TreeSet should respond same way on remove", javaSet.remove(value), set.remove(value));
         }
 
         for (int i = 0; i < iterations; i++) {
           Integer value = generator.nextInt(0, iterations * 2);
-          assertEquals("BTreeSet and TreeSet should respond same way on lookup", set.contains(value), javaSet.contains(value));
+          assertEquals("BTreeSet and TreeSet should respond same way on lookup", javaSet.contains(value), set.contains(value));
         }
+
+        assertEquals("BTreeSet and TreeSet should have same size after all ops", javaSet.size(), set.size());
     }
 
 }

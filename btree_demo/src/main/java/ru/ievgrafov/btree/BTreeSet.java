@@ -4,6 +4,19 @@ import java.util.Comparator;
 
 public class BTreeSet<E extends Object> {
   // Simple struct to contain one node
+  public static class Node {
+    public Object[] values;
+    public Node[] children;
+    public int valuesCount;
+    public int childrenCount;
+  
+    public Node(Object[] values, Node[] children, int valuesCount, int childrenCount) {
+      this.values = values;
+      this.children = children;
+      this.valuesCount = valuesCount;
+      this.childrenCount = childrenCount;
+    }
+  }
 
   private int size;
   private int valuesMaxSize;
@@ -37,46 +50,41 @@ public class BTreeSet<E extends Object> {
   }
 
   public boolean add(E value) {
-    return addValueToNode(value, root, null);
+    return add(value, root, null);
   }
 
   public boolean contains(E value) {
-    return recursiveContains(value, root);
+    return contains(value, root);
   }
 
   public boolean remove(E value) {
-    return recursiveRemove(value, root);
+    return remove(value, root);
   }
-  // public E[] toArray();
 
   // Implementation
 
   @SuppressWarnings("unchecked")
-  private boolean addValueToNode(E value, Node node, Node parent) {
-    if (isNodeFull(node)) {
+  private boolean add(E value, Node node, Node parent) {
+    if (node.valuesCount >= valuesMaxSize) {
       node = splitNode(node, parent, value);
     }
 
-    int newValuePosition = findPositionForNewValueInNode(value, node);
+    int newValuePosition = findPositionForValueInNode(value, node);
 
     if (newValuePosition < node.valuesCount && compare(value, (E)node.values[newValuePosition]) == 0) {
-    // value already present, return false on attempt to duplicate it
+      // Value already present, return false on attempt to duplicate it
       return false;
     } else if (node.childrenCount == 0) {
-      // a leaf node, we should put value here
+      // A leaf node, we should put value here
       insertValueInArray((Object[])node.values, node.valuesCount, value, newValuePosition);
-      this.size += 1;
-      node.valuesCount += 1;
+      this.size++;
+      node.valuesCount++;
 
       return true;
     } else {
-      // not a leaf node, we should go further down the tree
-      return addValueToNode(value, node.children[newValuePosition], node);
+      // Not a leaf node, we should go further down the tree
+      return add(value, node.children[newValuePosition], node);
     }
-  }
-
-  private boolean isNodeFull(Node node) {
-    return node.valuesCount >= valuesMaxSize;
   }
 
   @SuppressWarnings("unchecked")
@@ -117,18 +125,18 @@ public class BTreeSet<E extends Object> {
   private void pushValueWithChildrenToNode(Node parent, E value, Node leftNode, Node rightNode) {
     // We can be sure that there's at least one empty spot in the array at this moment
     // otherwise we would already have splitten the node on the way down to it
-    int newValuePosition = findPositionForNewValueInNode(value, parent);
+    int newValuePosition = findPositionForValueInNode(value, parent);
 
     insertValueInArray((Object[])parent.values, parent.valuesCount, value, newValuePosition);
-    parent.valuesCount += 1;
+    parent.valuesCount++;
     insertValueInArray((Object[])parent.children, parent.childrenCount, leftNode, newValuePosition);
     parent.children[newValuePosition + 1] = rightNode;
-    parent.childrenCount += 1;
+    parent.childrenCount++;
   }
 
   // Find position for a new value in a node
   @SuppressWarnings("unchecked")
-  private int findPositionForNewValueInNode(E value, Node node) {
+  private int findPositionForValueInNode(E value, Node node) {
     int newValuePosition = node.valuesCount;
 
     if (newValuePosition == 0) return 0;
@@ -142,7 +150,7 @@ public class BTreeSet<E extends Object> {
       // Left element is smaller than current one - should insert current one on current place
       if (compareResult < 0) return newValuePosition;
 
-      newValuePosition -= 1;
+      newValuePosition--;
     }
 
     return newValuePosition;
@@ -157,7 +165,7 @@ public class BTreeSet<E extends Object> {
     while (i > position) {
       arr[i] = arr[i - 1];
 
-      i -= 1;
+      i--;
     }
 
     arr[position] = value;
@@ -186,8 +194,8 @@ public class BTreeSet<E extends Object> {
   }
 
   @SuppressWarnings("unchecked")
-  private boolean recursiveContains(E value, Node node) {
-    int position = findPositionForNewValueInNode(value, node);
+  private boolean contains(E value, Node node) {
+    int position = findPositionForValueInNode(value, node);
 
     // Found you!
     if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) return true;
@@ -195,17 +203,17 @@ public class BTreeSet<E extends Object> {
     // We are at the leaf and didn't find element yet. It means it's not in the tree
     if (node.childrenCount == 0) return false;
 
-    return recursiveContains(value, node.children[position]);
+    return contains(value, node.children[position]);
   }
 
   @SuppressWarnings("unchecked")
-  private boolean recursiveRemove(E value, Node node) {
-    int position = findPositionForNewValueInNode(value, node);
+  private boolean remove(E value, Node node) {
+    int position = findPositionForValueInNode(value, node);
 
     if (position < node.valuesCount && compare(value, (E)node.values[position]) == 0) {
       // found element, should remove it now
       removeValueFromNodeByIndex(node, position);
-      this.size -= 1;
+      this.size--;
 
       return true;
     }
@@ -215,14 +223,14 @@ public class BTreeSet<E extends Object> {
       return false;
     }
 
-    return recursiveRemove(value, node.children[position]);
+    return remove(value, node.children[position]);
   }
 
   private void removeValueFromNodeByIndex(Node node, int index) {
     if (node.childrenCount == 0) {
       // If no children, simply drop the value by copying array without it
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
-      node.valuesCount -= 1;
+      node.valuesCount--;
 
       return;
     }
@@ -233,24 +241,27 @@ public class BTreeSet<E extends Object> {
     // Corresponding child is already empty -> we can simply drop current value and child altogether
     if (replacementNode.valuesCount == 0) {
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
-      node.valuesCount -= 1;
+      node.valuesCount--;
       System.arraycopy(node.children, index + 1, node.children, index, node.childrenCount - index - 1);
-      node.childrenCount -= 1;
+      node.childrenCount--;
 
       return;
     }
 
     while (replacementNode.childrenCount > 0) {
       Node nextReplacementNode = replacementNode.children[replacementNode.childrenCount - 1];
+
       if (nextReplacementNode.valuesCount == 0) break;
+
       replacementNode = nextReplacementNode;
     }
+
     node.values[index] = replacementNode.values[replacementNode.valuesCount - 1];
-    replacementNode.valuesCount -= 1;
+    replacementNode.valuesCount--;
 
     if (replacementNode.childrenCount != 0) {
       // it's not a leaf but rightmost child is empty which means we should drop it (last value has already been taken as replacement)
-      replacementNode.childrenCount -= 1;
+      replacementNode.childrenCount--;
     }
   }
 }
