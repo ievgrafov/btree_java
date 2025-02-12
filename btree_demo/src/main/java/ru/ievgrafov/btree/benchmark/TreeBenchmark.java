@@ -13,8 +13,8 @@ import java.util.concurrent.TimeUnit;
 @Fork(TreeBenchmark.FORK)
 public class TreeBenchmark {
   public static final int WARMUP_ITERATIONS = 3;
-  public static final int ITERATIONS = 20;
-  public static final int FORK = 1;
+  public static final int ITERATIONS = 10;
+  public static final int FORK = 5;
 
   public <T> boolean addAll(T[] values, Set<T> container) {
     Boolean result = true;

@@ -2,8 +2,13 @@ package ru.ievgrafov.btree;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class BTreeSet<E> implements Set<E> {
   // Simple struct to contain one node
@@ -18,6 +23,10 @@ public class BTreeSet<E> implements Set<E> {
       this.children = children;
       this.valuesCount = valuesCount;
       this.childrenCount = childrenCount;
+    }
+
+    public boolean hasChildren() {
+      return childrenCount > 0;
     }
   }
 
@@ -62,6 +71,44 @@ public class BTreeSet<E> implements Set<E> {
 
   public boolean remove(Object value) {
     return remove(value, root);
+  }
+
+  public Map<Integer,Integer> nodesCountByLevel() {
+    Map<Integer, Integer> result = new HashMap<>();
+    int currentLevel = 0;
+    List<Node> currentLevelNodes = List.of(root);
+
+    while (!currentLevelNodes.isEmpty()) {
+      result.put(currentLevel, currentLevelNodes.size());
+      currentLevelNodes =
+        currentLevelNodes
+          .stream()
+          .filter((Node node) -> node.childrenCount > 0)
+          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
+          .collect(Collectors.toList());
+      currentLevel++;
+    }
+
+    return result;
+  }
+
+  public Map<Integer,Integer> valuesCountByLevel() {
+    Map<Integer, Integer> result = new HashMap<>();
+    int currentLevel = 0;
+    List<Node> currentLevelNodes = List.of(root);
+
+    while (!currentLevelNodes.isEmpty()) {
+      result.put(currentLevel, currentLevelNodes.stream().map((Node node) -> node.valuesCount).reduce((acc, value) -> acc + value).get());
+      currentLevelNodes =
+        currentLevelNodes
+          .stream()
+          .filter((Node node) -> node.childrenCount > 0)
+          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
+          .collect(Collectors.toList());
+      currentLevel++;
+    }
+
+    return result;
   }
 
   // Implementation
@@ -211,8 +258,16 @@ public class BTreeSet<E> implements Set<E> {
     return contains(value, node.children[position]);
   }
 
-  @SuppressWarnings("unchecked")
   private boolean remove(Object value, Node node) {
+    return remove(value, node, null, 0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private boolean remove(Object value, Node node, Node parent, int positionInParent) {
+    if (parent != null) {
+      node = tryMergeNeighbours(node, parent, positionInParent);
+    }
+
     int position = findPositionForValueInNode((E)value, node);
 
     if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) {
@@ -228,7 +283,92 @@ public class BTreeSet<E> implements Set<E> {
       return false;
     }
 
-    return remove(value, node.children[position]);
+    return remove(value, node.children[position], node, position);
+  }
+
+  private Node tryMergeNeighbours(Node node, Node parent, int indexInParent) {
+    while (node.valuesCount == 0 && node.hasChildren()) {
+      Node child = node.children[0];
+      node.values = child.values;
+      node.valuesCount = child.valuesCount;
+      node.children = child.children;
+      node.childrenCount = child.childrenCount;
+    }
+
+    if (indexInParent > 0) {
+      Node leftNeighbour = parent.children[indexInParent - 1];
+
+      if (leftNeighbour.valuesCount + node.valuesCount + 1 < valuesMaxSize && node.hasChildren() == leftNeighbour.hasChildren()) {
+        mergeNodes(leftNeighbour, node, parent, indexInParent - 1);
+        return leftNeighbour;
+      }
+    }
+
+    if (indexInParent + 1 < parent.childrenCount) {
+      Node rightNeighbour = parent.children[indexInParent + 1];
+
+      if (rightNeighbour.valuesCount + node.valuesCount + 1 < valuesMaxSize && node.hasChildren() == rightNeighbour.hasChildren()) {
+        mergeNodes(node, rightNeighbour, parent, indexInParent);
+        return node;
+      }
+    }
+
+    // if (node.hasChildren() && parent.valuesCount + node.valuesCount < valuesMaxSize) {
+    //   mergeNodeIntoParent(node, parent, indexInParent);
+    //   return parent;
+    // }
+
+    return node;
+  }
+
+  private void mergeNodeIntoParent(Node node, Node parent, int indexInParent) {
+    Object[] newValuesArray = new Object[valuesMaxSize];
+    Node[] newChildrenArray = new Node[childrenMaxSize];
+    System.arraycopy(parent.values, 0, newValuesArray, 0, indexInParent);
+    System.arraycopy(node.values, 0, newValuesArray, indexInParent, node.valuesCount);
+    System.arraycopy(parent.values, indexInParent, newValuesArray, indexInParent + node.valuesCount, parent.valuesCount - indexInParent);
+
+    System.arraycopy(parent.children, 0, newChildrenArray, 0, indexInParent);
+    System.arraycopy(node.children, 0, newChildrenArray, indexInParent, node.childrenCount);
+    System.arraycopy(parent.children, indexInParent + 1, newChildrenArray, indexInParent + node.childrenCount, parent.childrenCount - indexInParent - 1);
+
+    parent.children = newChildrenArray;
+    parent.values = newValuesArray;
+    parent.valuesCount = parent.valuesCount + node.valuesCount;
+    parent.childrenCount = parent.childrenCount + node.childrenCount - 1;
+
+    if (parent.valuesCount + 1 != parent.childrenCount) {
+      parent.valuesCount = 0;
+    }
+  }
+
+  private void mergeNodes(Node left, Node right, Node parent, int leftPosition) {
+    int rightPosition = leftPosition + 1;
+    int nextAfterRightPosition = rightPosition + 1;
+
+    left.values[left.valuesCount] = parent.values[leftPosition];
+    left.valuesCount++;
+  
+    System.arraycopy(right.values, 0, left.values, left.valuesCount, right.valuesCount);
+    left.valuesCount += right.valuesCount;
+
+    if (right.childrenCount > 0) {
+      if (left.children == null) {
+        left.children = new Node[childrenMaxSize];
+      }
+      System.arraycopy(right.children, 0, left.children, left.childrenCount, right.childrenCount);
+      left.childrenCount += right.childrenCount;
+    }
+
+    // We perform merge not at the end and therefore should copy over the elements after merged ones
+    if (leftPosition < parent.valuesCount - 1) {
+      System.arraycopy(parent.values, rightPosition, parent.values, leftPosition, parent.valuesCount - rightPosition);
+      System.arraycopy(parent.children, nextAfterRightPosition, parent.children, rightPosition, parent.childrenCount - nextAfterRightPosition);
+    }
+    parent.valuesCount--;
+    parent.childrenCount--;
+    parent.values[parent.valuesCount] = null; // Don't store stale links, let them be garbage collected.
+    parent.children[parent.childrenCount] = null; // Don't store stale links, let them be garbage collected.
   }
 
   private void removeValueFromNodeByIndex(Node node, int index) {
@@ -243,31 +383,41 @@ public class BTreeSet<E> implements Set<E> {
     // Need to find replacement for value in children
     Node replacementNode = node.children[index];
 
+    E newValue = extractMax(replacementNode, null, 0);
+
     // Corresponding child is already empty -> we can simply drop current value and child altogether
-    if (replacementNode.valuesCount == 0) {
+    if (newValue == null) {
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
       node.valuesCount--;
       System.arraycopy(node.children, index + 1, node.children, index, node.childrenCount - index - 1);
       node.childrenCount--;
+    } else {
+      node.values[index] = newValue;
+    }
+  }
 
-      return;
+  @SuppressWarnings("unchecked")
+  private E extractMax(Node subtree, Node parent, int positionInParent) {
+    E result = null;
+
+    if (parent != null) {
+      subtree = tryMergeNeighbours(subtree, parent, positionInParent);
     }
 
-    while (replacementNode.childrenCount > 0) {
-      Node nextReplacementNode = replacementNode.children[replacementNode.childrenCount - 1];
-
-      if (nextReplacementNode.valuesCount == 0) break;
-
-      replacementNode = nextReplacementNode;
+    if (subtree.hasChildren()) {
+      result = extractMax(subtree.children[subtree.childrenCount - 1], subtree, subtree.childrenCount - 1);
     }
 
-    node.values[index] = replacementNode.values[replacementNode.valuesCount - 1];
-    replacementNode.valuesCount--;
+    if (result == null && subtree.valuesCount > 0) {
+      subtree.valuesCount--;
+      result = (E)subtree.values[subtree.valuesCount];
 
-    if (replacementNode.childrenCount != 0) {
-      // it's not a leaf but rightmost child is empty which means we should drop it (last value has already been taken as replacement)
-      replacementNode.childrenCount--;
+      if (subtree.hasChildren()) {
+        subtree.childrenCount--;
+      }
     }
+
+    return result;
   }
 
   @Override
