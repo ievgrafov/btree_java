@@ -12,10 +12,10 @@ import org.openjdk.jmh.annotations.State;
 import ru.ievgrafov.btree.BTreeSet;
 
 @State(Scope.Thread)
-public class BenchmarkState {
+public class BenchmarkStateBig {
     private final Comparator<Integer> intComparator = Comparator.naturalOrder();
 
-    final int targetSize = 50000;
+    final int targetSize = 500000;
     BTreeSet<Integer> btree1000;
     BTreeSet<Integer> btree100;
     BTreeSet<Integer> btree10;

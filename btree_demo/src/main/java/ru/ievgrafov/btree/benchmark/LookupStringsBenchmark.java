@@ -2,7 +2,7 @@ package ru.ievgrafov.btree.benchmark;
 
 import org.openjdk.jmh.annotations.*;
 
-public class LookupStringsBenchmark extends TreeBenchmark{
+public class LookupStringsBenchmark extends TreeBenchmark {
   @Benchmark
   public Boolean BTree1000(BenchmarkStateStrings state) {
     return checkContainsAll(state.testValues, state.btree1000);
@@ -19,8 +19,8 @@ public class LookupStringsBenchmark extends TreeBenchmark{
   }
 
   @Benchmark
-  public Boolean BTree1(BenchmarkState state) {
-    return checkContainsAll(state.testValues, state.btree1);
+  public Boolean BTree2(BenchmarkState state) {
+    return checkContainsAll(state.testValues, state.btree2);
   }
 
   @Benchmark

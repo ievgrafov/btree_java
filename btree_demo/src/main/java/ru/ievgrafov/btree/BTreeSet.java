@@ -7,12 +7,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BTreeSet<E> implements Set<E> {
   // Simple struct to contain one node
-  public static class Node {
+  private static class Node {
     public Object[] values;
     public Node[] children;
     public int valuesCount;
@@ -30,11 +31,97 @@ public class BTreeSet<E> implements Set<E> {
     }
   }
 
+  // Iterator over BTree
+  private static class BTreeIterator<E> implements Iterator<E> {
+    private static class IteratorStackNode {
+      public Node node;
+      public int positionsToGoThrough;
+
+      public IteratorStackNode(Node node, int positionsToGoThrough) {
+        this.node = node;
+        this.positionsToGoThrough = positionsToGoThrough;
+      }
+
+      public IteratorStackNode clone() {
+        return new IteratorStackNode(node, positionsToGoThrough);
+      }
+    }
+
+    private BTreeSet<E> btree;
+    private Stack<IteratorStackNode> nodesStack;
+    private IteratorStackNode previousResultPosition;
+    private boolean started;
+
+
+    public BTreeIterator(BTreeSet<E> btree) {
+      this.btree = btree;
+      this.nodesStack = new Stack<>();
+      this.started = false;
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (!started) start();
+
+      return !nodesStack.empty();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public E next() {
+      if (!started) start();
+
+      if (nodesStack.empty()) return null;
+
+      IteratorStackNode currentPosition = nodesStack.peek();
+      int currentIndex = currentPosition.node.valuesCount - currentPosition.positionsToGoThrough;
+      this.previousResultPosition = currentPosition.clone();
+      E result = (E)currentPosition.node.values[currentIndex];
+
+      goToNextValue();
+
+      return result;
+    }
+
+    @Override
+    public void remove() {
+      if (previousResultPosition != null) {
+        int index = previousResultPosition.node.valuesCount - previousResultPosition.positionsToGoThrough;
+        btree.removeValueFromNodeByIndex(previousResultPosition.node, index);
+      }
+    }
+
+    private void start() {
+      this.started = true;
+
+      this.nodesStack.push(new IteratorStackNode(btree.root, btree.root.valuesCount + 1));
+      goToNextValue();
+    }
+
+    private void goToNextValue() {
+      IteratorStackNode currentPosition = nodesStack.peek();
+      currentPosition.positionsToGoThrough--;
+
+      // Go deeper in the tree while possible
+      while (currentPosition.node.childrenCount > 0 && currentPosition.positionsToGoThrough >= 0) {
+        int currentIndex = currentPosition.node.valuesCount - currentPosition.positionsToGoThrough;
+        Node nextNode = currentPosition.node.children[currentIndex];
+        this.nodesStack.push(new IteratorStackNode(nextNode, nextNode.valuesCount));
+        currentPosition = nodesStack.peek();
+      }
+
+      // Return to first not empty node if current is empty
+      while (!this.nodesStack.empty() && nodesStack.peek().positionsToGoThrough <= 0) {
+        this.nodesStack.pop();
+      }
+    }
+  }
+
+  final private int valuesMaxSize;
+  final private int childrenMaxSize;
+  final private Comparator<E> comparator;
   private int size;
-  private int valuesMaxSize;
-  private int childrenMaxSize;
   private Node root;
-  private Comparator<E> comparator;
 
   public BTreeSet(Comparator<E> comparator) {
     this(2, comparator);
@@ -53,62 +140,126 @@ public class BTreeSet<E> implements Set<E> {
     );
   }
 
+  @Override
   public int size() {
     return size;
   }
 
+  @Override
   public boolean isEmpty() {
     return size == 0;
   }
 
+  @Override
   public boolean add(E value) {
     return add(value, root, null);
   }
 
+  @Override
   public boolean contains(Object value) {
     return contains(value, root);
   }
 
+  @Override
   public boolean remove(Object value) {
     return remove(value, root);
   }
 
-  public Map<Integer,Integer> nodesCountByLevel() {
-    Map<Integer, Integer> result = new HashMap<>();
-    int currentLevel = 0;
-    List<Node> currentLevelNodes = List.of(root);
+  @Override
+  public void clear() {
+    this.size = 0;
+    this.root = new Node(
+      new Object[valuesMaxSize],
+      new Node[childrenMaxSize],
+      0,
+      0
+    );
+  }
 
-    while (!currentLevelNodes.isEmpty()) {
-      result.put(currentLevel, currentLevelNodes.size());
-      currentLevelNodes =
-        currentLevelNodes
-          .stream()
-          .filter((Node node) -> node.childrenCount > 0)
-          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
-          .collect(Collectors.toList());
-      currentLevel++;
+  @Override
+  public boolean containsAll(Collection<?> c) {
+    var iterator = c.iterator();
+
+    while (iterator.hasNext()) {
+      if (!contains(iterator.next())) return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public Iterator<E> iterator() {
+    return new BTreeIterator<>(this);
+  }
+
+  @Override
+  public boolean removeAll(Collection<?> c) {
+    var collectionIterator = c.iterator();
+    boolean result = false;
+
+    while (collectionIterator.hasNext()) {
+      result = result || remove(collectionIterator.next());
     }
 
     return result;
   }
 
-  public Map<Integer,Integer> valuesCountByLevel() {
-    Map<Integer, Integer> result = new HashMap<>();
-    int currentLevel = 0;
-    List<Node> currentLevelNodes = List.of(root);
+  @Override
+  public boolean addAll(Collection<? extends E> c) {
+    var collectionIterator = c.iterator();
+    boolean result = false;
 
-    while (!currentLevelNodes.isEmpty()) {
-      result.put(currentLevel, currentLevelNodes.stream().map((Node node) -> node.valuesCount).reduce((acc, value) -> acc + value).get());
-      currentLevelNodes =
-        currentLevelNodes
-          .stream()
-          .filter((Node node) -> node.childrenCount > 0)
-          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
-          .collect(Collectors.toList());
-      currentLevel++;
+    while (collectionIterator.hasNext()) {
+      result = result || add(collectionIterator.next());
     }
 
     return result;
+  }
+
+  @Override
+  public boolean retainAll(Collection<?> c) {
+    Iterator<E> it = iterator();
+    boolean result = false;
+
+    while (it.hasNext()) {
+      if (!c.contains(it.next())) {
+        it.remove();
+        result = true;
+      }
+    }
+
+    return result;
+  }
+
+  @Override
+  public Object[] toArray() {
+    return toArray(new Object[0]);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> T[] toArray(T[] arg0) {
+    T[] result = arg0.length >= size ? arg0 : (T[])new Object[size];
+    Iterator<E> iterator = iterator();
+    int index = 0;
+
+    while (iterator.hasNext()) {
+      result[index] = (T)iterator.next();
+      index++;
+    }
+
+    if (result.length > size) result[size] = null;
+
+    return result;
+  }
+
+  public void reset() {
+    BTreeSet<E> newSet = new BTreeSet<E>(valuesMaxSize / 2, comparator);
+    Iterator<E> iterator = iterator();
+    iterator.forEachRemaining((k) -> newSet.add(k));
+
+    this.root = newSet.root;
+    this.size = newSet.size;
   }
 
   // Implementation
@@ -145,13 +296,13 @@ public class BTreeSet<E> implements Set<E> {
       copyOfRangeWithSize(sourceNode.values, 0, middleIndex - 1, valuesMaxSize),
       copyOfRangeWithSize(sourceNode.children, 0, middleIndex, childrenMaxSize),
       middleIndex,
-      sourceNode.childrenCount > 0 ? middleIndex + 1 : 0
+      sourceNode.hasChildren() ? middleIndex + 1 : 0
     );
     Node rightNode = new Node(
       copyOfRangeWithSize(sourceNode.values, middleIndex + 1, valuesMaxSize - 1, valuesMaxSize),
       copyOfRangeWithSize(sourceNode.children, middleIndex + 1, childrenMaxSize - 1, childrenMaxSize),
       valuesMaxSize - middleIndex - 1,
-      sourceNode.childrenCount > 0 ? childrenMaxSize - middleIndex - 1 : 0
+      sourceNode.hasChildren() ? childrenMaxSize - middleIndex - 1 : 0
     );
 
     if (parent == null) {
@@ -178,9 +329,9 @@ public class BTreeSet<E> implements Set<E> {
     int newValuePosition = findPositionForValueInNode(value, parent);
 
     insertValueInArray((Object[])parent.values, parent.valuesCount, value, newValuePosition);
-    parent.valuesCount++;
     insertValueInArray((Object[])parent.children, parent.childrenCount, leftNode, newValuePosition);
     parent.children[newValuePosition + 1] = rightNode;
+    parent.valuesCount++;
     parent.childrenCount++;
   }
 
@@ -211,15 +362,7 @@ public class BTreeSet<E> implements Set<E> {
   private void insertValueInArray(Object[] arr, int currentLength, Object value, int position) {
     // We can be sure that there's at least one empty spot in the array at this moment
     // otherwise we would already have splitten the node on the way down to it
-    int i = currentLength;
-
-    // TODO: check if it could be faster with System.arraycopy
-    while (i > position) {
-      arr[i] = arr[i - 1];
-
-      i--;
-    }
-
+    System.arraycopy(arr, position, arr, position + 1, currentLength - position);
     arr[position] = value;
   }
 
@@ -249,7 +392,7 @@ public class BTreeSet<E> implements Set<E> {
   private boolean contains(Object value, Node node) {
     int position = findPositionForValueInNode((E)value, node);
 
-    // Found you!
+    // Found it!
     if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) return true;
 
     // We are at the leaf and didn't find element yet. It means it's not in the tree
@@ -264,16 +407,11 @@ public class BTreeSet<E> implements Set<E> {
 
   @SuppressWarnings("unchecked")
   private boolean remove(Object value, Node node, Node parent, int positionInParent) {
-    if (parent != null) {
-      node = tryMergeNeighbours(node, parent, positionInParent);
-    }
-
     int position = findPositionForValueInNode((E)value, node);
 
     if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) {
       // found element, should remove it now
       removeValueFromNodeByIndex(node, position);
-      this.size--;
 
       return true;
     }
@@ -283,10 +421,23 @@ public class BTreeSet<E> implements Set<E> {
       return false;
     }
 
-    return remove(value, node.children[position], node, position);
+    boolean result = remove(value, node.children[position], node, position);
+
+    if (result) {
+      // Try to merge with right or left neighbour after removing a key
+      tryMergeNeighbours(node.children[position], node, position);
+
+      // The tree may end up in a situation when its root has no keys and only one child
+      // in such case we should compact it (place the only child in root's place)
+      if (parent == null) compactNode(node);
+    }
+
+    return result;
   }
 
-  private Node tryMergeNeighbours(Node node, Node parent, int indexInParent) {
+  // The tree may end up in a situation when its root has no keys and only one child
+  // in such case we should compact it (place the only child in root's place)
+  private void compactNode(Node node) {
     while (node.valuesCount == 0 && node.hasChildren()) {
       Node child = node.children[0];
       node.values = child.values;
@@ -294,11 +445,16 @@ public class BTreeSet<E> implements Set<E> {
       node.children = child.children;
       node.childrenCount = child.childrenCount;
     }
+  }
 
+  // Try to merge with right or left neighbour
+  // returns result of the merge or node itself
+  private Node tryMergeNeighbours(Node node, Node parent, int indexInParent) {
     if (indexInParent > 0) {
       Node leftNeighbour = parent.children[indexInParent - 1];
+      int newNodeValuesCount = leftNeighbour.valuesCount + node.valuesCount + 1;
 
-      if (leftNeighbour.valuesCount + node.valuesCount + 1 < valuesMaxSize && node.hasChildren() == leftNeighbour.hasChildren()) {
+      if (newNodeValuesCount < valuesMaxSize) {
         mergeNodes(leftNeighbour, node, parent, indexInParent - 1);
         return leftNeighbour;
       }
@@ -306,72 +462,47 @@ public class BTreeSet<E> implements Set<E> {
 
     if (indexInParent + 1 < parent.childrenCount) {
       Node rightNeighbour = parent.children[indexInParent + 1];
+      int newNodeValuesCount = rightNeighbour.valuesCount + node.valuesCount + 1;
 
-      if (rightNeighbour.valuesCount + node.valuesCount + 1 < valuesMaxSize && node.hasChildren() == rightNeighbour.hasChildren()) {
+      if (newNodeValuesCount < valuesMaxSize) {
         mergeNodes(node, rightNeighbour, parent, indexInParent);
         return node;
       }
     }
 
-    // if (node.hasChildren() && parent.valuesCount + node.valuesCount < valuesMaxSize) {
-    //   mergeNodeIntoParent(node, parent, indexInParent);
-    //   return parent;
-    // }
-
     return node;
-  }
-
-  private void mergeNodeIntoParent(Node node, Node parent, int indexInParent) {
-    Object[] newValuesArray = new Object[valuesMaxSize];
-    Node[] newChildrenArray = new Node[childrenMaxSize];
-    System.arraycopy(parent.values, 0, newValuesArray, 0, indexInParent);
-    System.arraycopy(node.values, 0, newValuesArray, indexInParent, node.valuesCount);
-    System.arraycopy(parent.values, indexInParent, newValuesArray, indexInParent + node.valuesCount, parent.valuesCount - indexInParent);
-
-    System.arraycopy(parent.children, 0, newChildrenArray, 0, indexInParent);
-    System.arraycopy(node.children, 0, newChildrenArray, indexInParent, node.childrenCount);
-    System.arraycopy(parent.children, indexInParent + 1, newChildrenArray, indexInParent + node.childrenCount, parent.childrenCount - indexInParent - 1);
-
-    parent.children = newChildrenArray;
-    parent.values = newValuesArray;
-    parent.valuesCount = parent.valuesCount + node.valuesCount;
-    parent.childrenCount = parent.childrenCount + node.childrenCount - 1;
-
-    if (parent.valuesCount + 1 != parent.childrenCount) {
-      parent.valuesCount = 0;
-    }
   }
 
   private void mergeNodes(Node left, Node right, Node parent, int leftPosition) {
     int rightPosition = leftPosition + 1;
     int nextAfterRightPosition = rightPosition + 1;
 
+    // Put middle element back (opposite to split)
     left.values[left.valuesCount] = parent.values[leftPosition];
     left.valuesCount++;
   
+    // Copy values from right node
     System.arraycopy(right.values, 0, left.values, left.valuesCount, right.valuesCount);
     left.valuesCount += right.valuesCount;
 
-    if (right.childrenCount > 0) {
-      if (left.children == null) {
-        left.children = new Node[childrenMaxSize];
-      }
+    if (left.hasChildren()) {
       System.arraycopy(right.children, 0, left.children, left.childrenCount, right.childrenCount);
       left.childrenCount += right.childrenCount;
     }
 
-    // We perform merge not at the end and therefore should copy over the elements after merged ones
+    // We perform merge not at the end of parent's children list
+    // and therefore should copy over the elements after merged ones
     if (leftPosition < parent.valuesCount - 1) {
       System.arraycopy(parent.values, rightPosition, parent.values, leftPosition, parent.valuesCount - rightPosition);
       System.arraycopy(parent.children, nextAfterRightPosition, parent.children, rightPosition, parent.childrenCount - nextAfterRightPosition);
     }
     parent.valuesCount--;
     parent.childrenCount--;
-    parent.values[parent.valuesCount] = null; // Don't store stale links, let them be garbage collected.
-    parent.children[parent.childrenCount] = null; // Don't store stale links, let them be garbage collected.
   }
 
   private void removeValueFromNodeByIndex(Node node, int index) {
+    this.size--;
+
     if (node.childrenCount == 0) {
       // If no children, simply drop the value by copying array without it
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
@@ -382,37 +513,36 @@ public class BTreeSet<E> implements Set<E> {
 
     // Need to find replacement for value in children
     Node replacementNode = node.children[index];
+    E newValue = extractMaxKeyFromSubtree(replacementNode);
 
-    E newValue = extractMax(replacementNode, null, 0);
-
-    // Corresponding child is already empty -> we can simply drop current value and child altogether
     if (newValue == null) {
+      // Corresponding child is already empty -> we should simply drop current value and child together
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
-      node.valuesCount--;
       System.arraycopy(node.children, index + 1, node.children, index, node.childrenCount - index - 1);
+      node.valuesCount--;
       node.childrenCount--;
     } else {
+      // There was a replacement in the leaf - should put it into place of removed key
       node.values[index] = newValue;
     }
   }
 
   @SuppressWarnings("unchecked")
-  private E extractMax(Node subtree, Node parent, int positionInParent) {
+  private E extractMaxKeyFromSubtree(Node subtree) {
     E result = null;
 
-    if (parent != null) {
-      subtree = tryMergeNeighbours(subtree, parent, positionInParent);
-    }
-
     if (subtree.hasChildren()) {
-      result = extractMax(subtree.children[subtree.childrenCount - 1], subtree, subtree.childrenCount - 1);
+      // Try to get max from right subtree first
+      result = extractMaxKeyFromSubtree(subtree.children[subtree.childrenCount - 1]);
     }
 
     if (result == null && subtree.valuesCount > 0) {
+      // If right subtree is already empty, max key is the rightmost one in current node
       subtree.valuesCount--;
       result = (E)subtree.values[subtree.valuesCount];
 
       if (subtree.hasChildren()) {
+        // Right subtree is empty and we're extracting max key from current node, can drop the child too
         subtree.childrenCount--;
       }
     }
@@ -420,51 +550,43 @@ public class BTreeSet<E> implements Set<E> {
     return result;
   }
 
-  @Override
-  public boolean addAll(Collection<? extends E> c) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'addAll'");
+  // Support functions not related to main functionality
+  // only for dbugging purposes
+  public Map<Integer,Integer> nodesCountByLevel() {
+    Map<Integer, Integer> result = new HashMap<>();
+    int currentLevel = 0;
+    List<Node> currentLevelNodes = List.of(root);
+
+    while (!currentLevelNodes.isEmpty()) {
+      result.put(currentLevel, currentLevelNodes.size());
+      currentLevelNodes =
+        currentLevelNodes
+          .stream()
+          .filter((Node node) -> node.childrenCount > 0)
+          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
+          .collect(Collectors.toList());
+      currentLevel++;
+    }
+
+    return result;
   }
 
-  @Override
-  public void clear() {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'clear'");
-  }
+  public Map<Integer,Integer> valuesCountByLevel() {
+    Map<Integer, Integer> result = new HashMap<>();
+    int currentLevel = 0;
+    List<Node> currentLevelNodes = List.of(root);
 
-  @Override
-  public boolean containsAll(Collection<?> c) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'containsAll'");
-  }
+    while (!currentLevelNodes.isEmpty()) {
+      result.put(currentLevel, currentLevelNodes.stream().map((Node node) -> node.valuesCount).reduce((acc, value) -> acc + value).get());
+      currentLevelNodes =
+        currentLevelNodes
+          .stream()
+          .filter((Node node) -> node.childrenCount > 0)
+          .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
+          .collect(Collectors.toList());
+      currentLevel++;
+    }
 
-  @Override
-  public Iterator<E> iterator() {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'iterator'");
-  }
-
-  @Override
-  public boolean removeAll(Collection<?> c) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'removeAll'");
-  }
-
-  @Override
-  public boolean retainAll(Collection<?> c) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'retainAll'");
-  }
-
-  @Override
-  public Object[] toArray() {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'toArray'");
-  }
-
-  @Override
-  public <T> T[] toArray(T[] arg0) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'toArray'");
+    return result;
   }
 }

@@ -12,10 +12,10 @@ import org.openjdk.jmh.annotations.State;
 import ru.ievgrafov.btree.BTreeSet;
 
 @State(Scope.Thread)
-public class BenchmarkState {
+public class BenchmarkStateHuge {
     private final Comparator<Integer> intComparator = Comparator.naturalOrder();
 
-    final int targetSize = 50000;
+    final int targetSize = 5000000;
     BTreeSet<Integer> btree1000;
     BTreeSet<Integer> btree100;
     BTreeSet<Integer> btree10;
@@ -51,19 +51,14 @@ public class BenchmarkState {
         }
       }
 
-      for (int j = targetSize; j > 0; j--) {
-        int value = generator.nextInt(0, targetSize * 2);
+      // for (int j = targetSize; j > 0; j--) {
+      //   int value = generator.nextInt(0, targetSize * 2);
 
-        btree1000.remove(value);
-        btree100.remove(value);
-        btree10.remove(value);
-        btree2.remove(value);
-        javaTree.remove(value);
-      }
-
-      // btree1000.resetComparisons();
-      // btree100.resetComparisons();
-      // btree10.resetComparisons();
-      // btree2.resetComparisons();
+      //   btree1000.remove(value);
+      //   btree100.remove(value);
+      //   btree10.remove(value);
+      //   btree2.remove(value);
+      //   javaTree.remove(value);
+      // }
     }
 }
