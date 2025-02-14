@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BTreeSet<E> implements Set<E> {
-  // Simple struct to contain one node
+  // Simple struct to represent one node
   private static class Node {
     public Object[] values;
     public Node[] children;
@@ -33,23 +33,23 @@ public class BTreeSet<E> implements Set<E> {
 
   // Iterator over BTree
   private static class BTreeIterator<E> implements Iterator<E> {
-    private static class IteratorStackNode {
+    private static class IteratorPosition {
       public Node node;
-      public int positionsToGoThrough;
+      public int keysInNodeToGoThrough;
 
-      public IteratorStackNode(Node node, int positionsToGoThrough) {
+      public IteratorPosition(Node node, int keysInNodeToGoThrough) {
         this.node = node;
-        this.positionsToGoThrough = positionsToGoThrough;
+        this.keysInNodeToGoThrough = keysInNodeToGoThrough;
       }
 
-      public IteratorStackNode clone() {
-        return new IteratorStackNode(node, positionsToGoThrough);
+      public IteratorPosition clone() {
+        return new IteratorPosition(node, keysInNodeToGoThrough);
       }
     }
 
     private BTreeSet<E> btree;
-    private Stack<IteratorStackNode> nodesStack;
-    private IteratorStackNode previousResultPosition;
+    private Stack<IteratorPosition> nodesStack;
+    private IteratorPosition previousResultPosition;
     private boolean started;
 
 
@@ -73,8 +73,8 @@ public class BTreeSet<E> implements Set<E> {
 
       if (nodesStack.empty()) return null;
 
-      IteratorStackNode currentPosition = nodesStack.peek();
-      int currentIndex = currentPosition.node.valuesCount - currentPosition.positionsToGoThrough;
+      IteratorPosition currentPosition = nodesStack.peek();
+      int currentIndex = currentPosition.node.valuesCount - currentPosition.keysInNodeToGoThrough;
       this.previousResultPosition = currentPosition.clone();
       E result = (E)currentPosition.node.values[currentIndex];
 
@@ -86,7 +86,7 @@ public class BTreeSet<E> implements Set<E> {
     @Override
     public void remove() {
       if (previousResultPosition != null) {
-        int index = previousResultPosition.node.valuesCount - previousResultPosition.positionsToGoThrough;
+        int index = previousResultPosition.node.valuesCount - previousResultPosition.keysInNodeToGoThrough;
         btree.removeValueFromNodeByIndex(previousResultPosition.node, index);
       }
     }
@@ -94,24 +94,24 @@ public class BTreeSet<E> implements Set<E> {
     private void start() {
       this.started = true;
 
-      this.nodesStack.push(new IteratorStackNode(btree.root, btree.root.valuesCount + 1));
+      this.nodesStack.push(new IteratorPosition(btree.root, btree.root.valuesCount + 1));
       goToNextValue();
     }
 
     private void goToNextValue() {
-      IteratorStackNode currentPosition = nodesStack.peek();
-      currentPosition.positionsToGoThrough--;
+      IteratorPosition currentPosition = nodesStack.peek();
+      currentPosition.keysInNodeToGoThrough--;
 
       // Go deeper in the tree while possible
-      while (currentPosition.node.childrenCount > 0 && currentPosition.positionsToGoThrough >= 0) {
-        int currentIndex = currentPosition.node.valuesCount - currentPosition.positionsToGoThrough;
+      while (currentPosition.node.hasChildren() && currentPosition.keysInNodeToGoThrough >= 0) {
+        int currentIndex = currentPosition.node.valuesCount - currentPosition.keysInNodeToGoThrough;
         Node nextNode = currentPosition.node.children[currentIndex];
-        this.nodesStack.push(new IteratorStackNode(nextNode, nextNode.valuesCount));
+        this.nodesStack.push(new IteratorPosition(nextNode, nextNode.valuesCount));
         currentPosition = nodesStack.peek();
       }
 
       // Return to first not empty node if current is empty
-      while (!this.nodesStack.empty() && nodesStack.peek().positionsToGoThrough <= 0) {
+      while (!this.nodesStack.empty() && nodesStack.peek().keysInNodeToGoThrough <= 0) {
         this.nodesStack.pop();
       }
     }
@@ -275,16 +275,16 @@ public class BTreeSet<E> implements Set<E> {
     if (newValuePosition < node.valuesCount && compare(value, (E)node.values[newValuePosition]) == 0) {
       // Value already present, return false on attempt to duplicate it
       return false;
-    } else if (node.childrenCount == 0) {
+    } else if (node.hasChildren()) {
+      // Not a leaf node, we should go further down the tree
+      return add(value, node.children[newValuePosition], node);
+    } else {
       // A leaf node, we should put value here
       insertValueInArray((Object[])node.values, node.valuesCount, value, newValuePosition);
       this.size++;
       node.valuesCount++;
 
       return true;
-    } else {
-      // Not a leaf node, we should go further down the tree
-      return add(value, node.children[newValuePosition], node);
     }
   }
 
@@ -395,10 +395,11 @@ public class BTreeSet<E> implements Set<E> {
     // Found it!
     if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) return true;
 
-    // We are at the leaf and didn't find element yet. It means it's not in the tree
-    if (node.childrenCount == 0) return false;
+    // If there're children, lookup should be continued there
+    if (node.hasChildren()) return contains(value, node.children[position]);
 
-    return contains(value, node.children[position]);
+    // We are at the leaf and didn't find element yet. It means it's not in the tree
+    return false;
   }
 
   private boolean remove(Object value, Node node) {
@@ -417,9 +418,7 @@ public class BTreeSet<E> implements Set<E> {
     }
 
     // We are at the leaf and didn't find element yet. It means it's not in the tree
-    if (node.childrenCount == 0) {
-      return false;
-    }
+    if (!node.hasChildren()) return false;
 
     boolean result = remove(value, node.children[position], node, position);
 
@@ -503,7 +502,7 @@ public class BTreeSet<E> implements Set<E> {
   private void removeValueFromNodeByIndex(Node node, int index) {
     this.size--;
 
-    if (node.childrenCount == 0) {
+    if (!node.hasChildren()) {
       // If no children, simply drop the value by copying array without it
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
       node.valuesCount--;
@@ -511,25 +510,23 @@ public class BTreeSet<E> implements Set<E> {
       return;
     }
 
-    // Need to find replacement for value in children
-    Node replacementNode = node.children[index];
-    E newValue = extractMaxKeyFromSubtree(replacementNode);
+    // Need to find replacement for value in child subtree
+    Object replacement = extractMaxKeyFromSubtree(node.children[index]);
 
-    if (newValue == null) {
-      // Corresponding child is already empty -> we should simply drop current value and child together
+    if (replacement == null) {
+      // Corresponding child is already empty so there's no replacement -> we should simply drop current value and child together
       System.arraycopy(node.values, index + 1, node.values, index, node.valuesCount - index - 1);
       System.arraycopy(node.children, index + 1, node.children, index, node.childrenCount - index - 1);
       node.valuesCount--;
       node.childrenCount--;
     } else {
       // There was a replacement in the leaf - should put it into place of removed key
-      node.values[index] = newValue;
+      node.values[index] = replacement;
     }
   }
 
-  @SuppressWarnings("unchecked")
-  private E extractMaxKeyFromSubtree(Node subtree) {
-    E result = null;
+  private Object extractMaxKeyFromSubtree(Node subtree) {
+    Object result = null;
 
     if (subtree.hasChildren()) {
       // Try to get max from right subtree first
@@ -539,7 +536,7 @@ public class BTreeSet<E> implements Set<E> {
     if (result == null && subtree.valuesCount > 0) {
       // If right subtree is already empty, max key is the rightmost one in current node
       subtree.valuesCount--;
-      result = (E)subtree.values[subtree.valuesCount];
+      result = subtree.values[subtree.valuesCount];
 
       if (subtree.hasChildren()) {
         // Right subtree is empty and we're extracting max key from current node, can drop the child too
@@ -562,7 +559,7 @@ public class BTreeSet<E> implements Set<E> {
       currentLevelNodes =
         currentLevelNodes
           .stream()
-          .filter((Node node) -> node.childrenCount > 0)
+          .filter((Node node) -> node.hasChildren())
           .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
           .collect(Collectors.toList());
       currentLevel++;
@@ -581,7 +578,7 @@ public class BTreeSet<E> implements Set<E> {
       currentLevelNodes =
         currentLevelNodes
           .stream()
-          .filter((Node node) -> node.childrenCount > 0)
+          .filter((Node node) -> node.hasChildren())
           .flatMap((Node node) -> Stream.of(node.children).limit(node.childrenCount).filter((Node child) -> child != null))
           .collect(Collectors.toList());
       currentLevel++;

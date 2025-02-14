@@ -19,7 +19,7 @@ public class BenchmarkStateHuge {
     BTreeSet<Integer> btree1000;
     BTreeSet<Integer> btree100;
     BTreeSet<Integer> btree10;
-    BTreeSet<Integer> btree2;
+    BTreeSet<Integer> btree3;
     TreeSet<Integer> javaTree;
     Integer[] testValues;
 
@@ -32,7 +32,7 @@ public class BenchmarkStateHuge {
       btree1000 = new BTreeSet<>(1000, intComparator);
       btree100 = new BTreeSet<>(100, intComparator);
       btree10 = new BTreeSet<>(10, intComparator);
-      btree2 = new BTreeSet<>(2, intComparator);
+      btree3 = new BTreeSet<>(1, intComparator);
       javaTree = new TreeSet<>(intComparator);
 
       // Prepare data
@@ -42,7 +42,7 @@ public class BenchmarkStateHuge {
         btree1000.add(value);
         btree100.add(value);
         btree10.add(value);
-        btree2.add(value);
+        btree3.add(value);
         javaTree.add(value);
 
         if (testValuesCount < 10000) {
@@ -57,7 +57,7 @@ public class BenchmarkStateHuge {
       //   btree1000.remove(value);
       //   btree100.remove(value);
       //   btree10.remove(value);
-      //   btree2.remove(value);
+      //   btree3.remove(value);
       //   javaTree.remove(value);
       // }
     }

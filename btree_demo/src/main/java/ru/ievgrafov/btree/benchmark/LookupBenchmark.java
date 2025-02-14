@@ -19,8 +19,8 @@ public class LookupBenchmark extends TreeBenchmark {
   }
 
   @Benchmark
-  public Boolean BTree2(BenchmarkState state) {
-    return checkContainsAll(state.testValues, state.btree2);
+  public Boolean BTree3(BenchmarkState state) {
+    return checkContainsAll(state.testValues, state.btree3);
   }
 
   @Benchmark
@@ -29,30 +29,30 @@ public class LookupBenchmark extends TreeBenchmark {
   }
 
 
-  @Benchmark
-  public Boolean BigBTree1000(BenchmarkStateBig state) {
-    return checkContainsAll(state.testValues, state.btree1000);
-  }
+  // @Benchmark
+  // public Boolean BigBTree1000(BenchmarkStateBig state) {
+  //   return checkContainsAll(state.testValues, state.btree1000);
+  // }
 
-  @Benchmark
-  public Boolean BigBTree100(BenchmarkStateBig state) {
-    return checkContainsAll(state.testValues, state.btree100);
-  }
+  // @Benchmark
+  // public Boolean BigBTree100(BenchmarkStateBig state) {
+  //   return checkContainsAll(state.testValues, state.btree100);
+  // }
 
-  @Benchmark
-  public Boolean BigBTree10(BenchmarkStateBig state) {
-    return checkContainsAll(state.testValues, state.btree10);
-  }
+  // @Benchmark
+  // public Boolean BigBTree10(BenchmarkStateBig state) {
+  //   return checkContainsAll(state.testValues, state.btree10);
+  // }
 
-  @Benchmark
-  public Boolean BigBTree1(BenchmarkStateBig state) {
-    return checkContainsAll(state.testValues, state.btree2);
-  }
+  // @Benchmark
+  // public Boolean BigBTree1(BenchmarkStateBig state) {
+  //   return checkContainsAll(state.testValues, state.btree3);
+  // }
 
-  @Benchmark
-  public Boolean BigJavaTree(BenchmarkStateBig state) {
-    return checkContainsAll(state.testValues, state.javaTree);
-  }
+  // @Benchmark
+  // public Boolean BigJavaTree(BenchmarkStateBig state) {
+  //   return checkContainsAll(state.testValues, state.javaTree);
+  // }
 
 
   // @Benchmark
@@ -72,7 +72,7 @@ public class LookupBenchmark extends TreeBenchmark {
 
   // @Benchmark
   // public Boolean HugeBTree1(BenchmarkStateHuge state) {
-  //   return checkContainsAll(state.testValues, state.btree2);
+  //   return checkContainsAll(state.testValues, state.btree3);
   // }
 
   // @Benchmark
