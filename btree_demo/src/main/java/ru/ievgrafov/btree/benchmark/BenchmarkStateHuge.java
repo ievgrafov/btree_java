@@ -13,7 +13,7 @@ import ru.ievgrafov.btree.BTreeSet;
 
 @State(Scope.Thread)
 public class BenchmarkStateHuge {
-    private final Comparator<Integer> intComparator = Comparator.naturalOrder();
+    public final Comparator<Integer> comparator = Comparator.naturalOrder();
 
     final int targetSize = 5000000;
     BTreeSet<Integer> btree1000;
@@ -29,11 +29,11 @@ public class BenchmarkStateHuge {
       testValues = new Integer[10000];
       int testValuesCount = 0;
 
-      btree1000 = new BTreeSet<>(1000, intComparator);
-      btree100 = new BTreeSet<>(100, intComparator);
-      btree10 = new BTreeSet<>(10, intComparator);
-      btree3 = new BTreeSet<>(1, intComparator);
-      javaTree = new TreeSet<>(intComparator);
+      btree1000 = new BTreeSet<>(1000, comparator);
+      btree100 = new BTreeSet<>(100, comparator);
+      btree10 = new BTreeSet<>(10, comparator);
+      btree3 = new BTreeSet<>(3, comparator);
+      javaTree = new TreeSet<>(comparator);
 
       // Prepare data
       for (int j = targetSize * 2; j > 0; j--) {
@@ -51,14 +51,14 @@ public class BenchmarkStateHuge {
         }
       }
 
-      // for (int j = targetSize; j > 0; j--) {
-      //   int value = generator.nextInt(0, targetSize * 2);
+      for (int j = targetSize; j > 0; j--) {
+        int value = generator.nextInt(0, targetSize * 2);
 
-      //   btree1000.remove(value);
-      //   btree100.remove(value);
-      //   btree10.remove(value);
-      //   btree3.remove(value);
-      //   javaTree.remove(value);
-      // }
+        btree1000.remove(value);
+        btree100.remove(value);
+        btree10.remove(value);
+        btree3.remove(value);
+        javaTree.remove(value);
+      }
     }
 }

@@ -19,7 +19,7 @@ public class InsertStringsBenchmark extends TreeBenchmark {
   }
 
   @Benchmark
-  public Boolean BTree3(BenchmarkState state) {
+  public Boolean BTree3(BenchmarkStateStrings state) {
     return addAll(state.testValues, state.btree3);
   }
 

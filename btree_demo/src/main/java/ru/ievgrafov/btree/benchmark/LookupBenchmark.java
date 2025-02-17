@@ -28,7 +28,6 @@ public class LookupBenchmark extends TreeBenchmark {
     return checkContainsAll(state.testValues, state.javaTree);
   }
 
-
   // @Benchmark
   // public Boolean BigBTree1000(BenchmarkStateBig state) {
   //   return checkContainsAll(state.testValues, state.btree1000);
@@ -45,7 +44,7 @@ public class LookupBenchmark extends TreeBenchmark {
   // }
 
   // @Benchmark
-  // public Boolean BigBTree1(BenchmarkStateBig state) {
+  // public Boolean BigBTree3(BenchmarkStateBig state) {
   //   return checkContainsAll(state.testValues, state.btree3);
   // }
 
@@ -71,7 +70,7 @@ public class LookupBenchmark extends TreeBenchmark {
   // }
 
   // @Benchmark
-  // public Boolean HugeBTree1(BenchmarkStateHuge state) {
+  // public Boolean HugeBTree3(BenchmarkStateHuge state) {
   //   return checkContainsAll(state.testValues, state.btree3);
   // }
 

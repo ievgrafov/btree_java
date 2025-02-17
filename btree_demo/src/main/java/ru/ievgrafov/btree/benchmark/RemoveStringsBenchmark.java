@@ -19,7 +19,7 @@ public class RemoveStringsBenchmark extends TreeBenchmark {
   }
 
   @Benchmark
-  public Boolean BTree3(BenchmarkState state) {
+  public Boolean BTree3(BenchmarkStateStrings state) {
     return removeAll(state.testValues, state.btree3);
   }
 

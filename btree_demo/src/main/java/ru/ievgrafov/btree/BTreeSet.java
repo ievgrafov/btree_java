@@ -122,6 +122,9 @@ public class BTreeSet<E> implements Set<E> {
   final private Comparator<E> comparator;
   private int size;
   private Node root;
+  private int findValuePosition;
+  private boolean findValueExactMatch;
+  private boolean splitNodeExactMatch;
 
   public BTreeSet(Comparator<E> comparator) {
     this(2, comparator);
@@ -130,11 +133,11 @@ public class BTreeSet<E> implements Set<E> {
   public BTreeSet(int factor, Comparator<E> comparator) {
     this.size = 0;
     this.comparator = comparator;
-    this.valuesMaxSize = factor * 2;
-    this.childrenMaxSize = factor * 2 + 1;
+    this.valuesMaxSize = factor << 1;
+    this.childrenMaxSize = this.valuesMaxSize + 1;
     this.root = new Node(
       new Object[valuesMaxSize],
-      new Node[childrenMaxSize],
+      null,
       0,
       0
     );
@@ -170,7 +173,7 @@ public class BTreeSet<E> implements Set<E> {
     this.size = 0;
     this.root = new Node(
       new Object[valuesMaxSize],
-      new Node[childrenMaxSize],
+      null,
       0,
       0
     );
@@ -254,7 +257,7 @@ public class BTreeSet<E> implements Set<E> {
   }
 
   public void reset() {
-    BTreeSet<E> newSet = new BTreeSet<E>(valuesMaxSize / 2, comparator);
+    BTreeSet<E> newSet = new BTreeSet<E>(valuesMaxSize >> 1, comparator);
     Iterator<E> iterator = iterator();
     iterator.forEachRemaining((k) -> newSet.add(k));
 
@@ -264,46 +267,53 @@ public class BTreeSet<E> implements Set<E> {
 
   // Implementation
 
-  @SuppressWarnings("unchecked")
   private boolean add(E value, Node node, Node parent) {
-    if (node.valuesCount >= valuesMaxSize) {
-      node = splitNode(node, parent, value);
-    }
+    for (;;) {
+      if (node.valuesCount >= valuesMaxSize) {
+        node = splitNode(node, parent, value);
+        if (this.splitNodeExactMatch) {
+          // Value already present, return false on attempt to duplicate it
+          return false;
+        }
+      }
 
-    int newValuePosition = findPositionForValueInNode(value, node);
+      findPositionForValueInNode(value, node);
 
-    if (newValuePosition < node.valuesCount && compare(value, (E)node.values[newValuePosition]) == 0) {
-      // Value already present, return false on attempt to duplicate it
-      return false;
-    } else if (node.hasChildren()) {
+      if (this.findValueExactMatch) {
+        // Value already present, return false on attempt to duplicate it
+        return false;
+      } else if (!node.hasChildren()) {
+        // A leaf node, we should put value here
+        insertValueInArray((Object[])node.values, node.valuesCount, value, this.findValuePosition);
+        this.size++;
+        node.valuesCount++;
+  
+        return true;
+      }
+
       // Not a leaf node, we should go further down the tree
-      return add(value, node.children[newValuePosition], node);
-    } else {
-      // A leaf node, we should put value here
-      insertValueInArray((Object[])node.values, node.valuesCount, value, newValuePosition);
-      this.size++;
-      node.valuesCount++;
-
-      return true;
+      parent = node;
+      node = node.children[this.findValuePosition];
     }
   }
 
   @SuppressWarnings("unchecked")
   private Node splitNode(Node sourceNode, Node parent, E value) {
-    int middleIndex = valuesMaxSize / 2;
+    int middleIndex = valuesMaxSize >> 1;
     E middleValue = (E)sourceNode.values[middleIndex];
     Node leftNode = new Node(
       copyOfRangeWithSize(sourceNode.values, 0, middleIndex - 1, valuesMaxSize),
-      copyOfRangeWithSize(sourceNode.children, 0, middleIndex, childrenMaxSize),
+      sourceNode.hasChildren() ? copyOfRangeWithSize(sourceNode.children, 0, middleIndex, childrenMaxSize) : null,
       middleIndex,
       sourceNode.hasChildren() ? middleIndex + 1 : 0
     );
     Node rightNode = new Node(
       copyOfRangeWithSize(sourceNode.values, middleIndex + 1, valuesMaxSize - 1, valuesMaxSize),
-      copyOfRangeWithSize(sourceNode.children, middleIndex + 1, childrenMaxSize - 1, childrenMaxSize),
+      sourceNode.hasChildren() ? copyOfRangeWithSize(sourceNode.children, middleIndex + 1, childrenMaxSize - 1, childrenMaxSize) : null,
       valuesMaxSize - middleIndex - 1,
       sourceNode.hasChildren() ? childrenMaxSize - middleIndex - 1 : 0
     );
+    int compareResult = comparator.compare(value, middleValue);
 
     if (parent == null) {
       // it means that given node is root and it is full, we should split it and have new root in place
@@ -314,49 +324,93 @@ public class BTreeSet<E> implements Set<E> {
       sourceNode.children[0] = leftNode;
       sourceNode.children[1] = rightNode;
       sourceNode.childrenCount = 2;
-
-      return sourceNode;
     } else {
       pushValueWithChildrenToNode(parent, middleValue, leftNode, rightNode);
+    }
 
-      return parent;
+    if (compareResult == 0) {
+      this.splitNodeExactMatch = true;
+      return null;
+    } else if (compareResult < 0) {
+      this.splitNodeExactMatch = false;
+      return leftNode;
+    } else {
+      this.splitNodeExactMatch = false;
+      return rightNode;
     }
   }
 
   private void pushValueWithChildrenToNode(Node parent, E value, Node leftNode, Node rightNode) {
     // We can be sure that there's at least one empty spot in the array at this moment
     // otherwise we would already have splitten the node on the way down to it
-    int newValuePosition = findPositionForValueInNode(value, parent);
+    findPositionForValueInNode(value, parent);
 
-    insertValueInArray((Object[])parent.values, parent.valuesCount, value, newValuePosition);
-    insertValueInArray((Object[])parent.children, parent.childrenCount, leftNode, newValuePosition);
-    parent.children[newValuePosition + 1] = rightNode;
+    insertValueInArray((Object[])parent.values, parent.valuesCount, value, this.findValuePosition);
+    insertValueInArray((Object[])parent.children, parent.childrenCount, leftNode, this.findValuePosition);
+    parent.children[this.findValuePosition + 1] = rightNode;
     parent.valuesCount++;
     parent.childrenCount++;
   }
 
   // Find position for a new value in a node
+  private void findPositionForValueInNode(E value, Node node) {
+    if (node.valuesCount == 0) {
+      // Empty node, should put first element at 0
+      this.findValuePosition = 0;
+      this.findValueExactMatch = false;
+    }
+    findPositionBinarySearch(value, node);
+  }
+
   @SuppressWarnings("unchecked")
-  private int findPositionForValueInNode(E value, Node node) {
-      int upperBound = node.valuesCount - 1;
-      int lowerBound = 0;
-      int currentPosition;
-    
-      while (upperBound >= lowerBound) {
-        currentPosition = (upperBound + lowerBound) / 2;
-        int compareResult = compare((E)node.values[currentPosition], value);
-    
-        if (compareResult == 0) {
-          // Found it!
-          return currentPosition;
-        } else if (compareResult > 0) {
-          upperBound = currentPosition - 1;
-        } else {
-          lowerBound = currentPosition + 1;
-        }
+  private void findPositionBinarySearch(E value, Node node) {
+    int upperBound = node.valuesCount - 1;
+    int lowerBound = 0;
+    int currentPosition;
+
+    while (upperBound >= lowerBound) {
+      if (upperBound - lowerBound < 6) {
+        findPositionLinearSearch(value, node, upperBound, lowerBound);
+        return;
       }
-    
-      return lowerBound;
+      currentPosition = (upperBound + lowerBound) >> 1;
+      int compareResult = comparator.compare((E)node.values[currentPosition], value);
+  
+      if (compareResult == 0) {
+        // Found it!
+        this.findValuePosition = currentPosition;
+        this.findValueExactMatch = true;
+        return;
+      } else if (compareResult > 0) {
+        upperBound = currentPosition - 1;
+      } else {
+        lowerBound = currentPosition + 1;
+      }
+    }
+
+    this.findValueExactMatch = false;
+    this.findValuePosition = lowerBound;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void findPositionLinearSearch(E value, Node node, int start, int end) {
+    for (int i = end; i >= start; i--) {
+      int compareResult = comparator.compare((E)node.values[i], value);
+
+      if (compareResult == 0) {
+        // Found it!
+        this.findValuePosition = i;
+        this.findValueExactMatch = true;
+        return;
+      } else if (compareResult < 0) {
+        this.findValuePosition = i + 1;
+        this.findValueExactMatch = false;
+        return;
+      }
+    }
+
+    this.findValuePosition = start;
+    this.findValueExactMatch = false;
   }
 
   private void insertValueInArray(Object[] arr, int currentLength, Object value, int position) {
@@ -384,22 +438,19 @@ public class BTreeSet<E> implements Set<E> {
     return result;
   }
 
-  private int compare(E left, E right) {
-    return comparator.compare(left, right);
-  }
-
   @SuppressWarnings("unchecked")
   private boolean contains(Object value, Node node) {
-    int position = findPositionForValueInNode((E)value, node);
+    for(;;) {
+      findPositionForValueInNode((E)value, node);
 
-    // Found it!
-    if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) return true;
+      // Found it!
+      if (this.findValueExactMatch) return true;
 
-    // If there're children, lookup should be continued there
-    if (node.hasChildren()) return contains(value, node.children[position]);
+      // We are at the leaf and didn't find element yet. It means it's not in the tree
+      if (!node.hasChildren()) return false;
 
-    // We are at the leaf and didn't find element yet. It means it's not in the tree
-    return false;
+      node = node.children[this.findValuePosition];
+    }
   }
 
   private boolean remove(Object value, Node node) {
@@ -408,9 +459,10 @@ public class BTreeSet<E> implements Set<E> {
 
   @SuppressWarnings("unchecked")
   private boolean remove(Object value, Node node, Node parent, int positionInParent) {
-    int position = findPositionForValueInNode((E)value, node);
+    findPositionForValueInNode((E)value, node);
+    int position = this.findValuePosition;
 
-    if (position < node.valuesCount && compare((E)value, (E)node.values[position]) == 0) {
+    if (this.findValueExactMatch) {
       // found element, should remove it now
       removeValueFromNodeByIndex(node, position);
 

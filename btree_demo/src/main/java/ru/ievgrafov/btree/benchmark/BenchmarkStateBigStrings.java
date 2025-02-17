@@ -14,7 +14,7 @@ import org.openjdk.jmh.annotations.State;
 import ru.ievgrafov.btree.BTreeSet;
 
 @State(Scope.Thread)
-public class BenchmarkStateStrings {
+public class BenchmarkStateBigStrings {
     public final Comparator<String> comparator = Comparator.naturalOrder();
 
     BTreeSet<String> btree1000;
@@ -48,7 +48,7 @@ public class BenchmarkStateStrings {
       List<String> toBeRemoved = new ArrayList<>();
 
       // Prepare data
-      for (int i = 100000; i > 0; i--) {
+      for (int i = 1000000; i > 0; i--) {
         StringBuilder sb = new StringBuilder();
 
         for(int j = 0; j < 20; j++) {
