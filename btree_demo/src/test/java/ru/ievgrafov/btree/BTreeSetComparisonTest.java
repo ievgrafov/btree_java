@@ -504,6 +504,72 @@ public class BTreeSetComparisonTest {
     }
   }
 
+  @Test
+  public void testMemoryUsage() {
+    TreeSet<Integer> values = new TreeSet<>(intComparator);
+    TreeSet<Integer> javaSet = new TreeSet<>(intComparator);
+    BTreeSet<Integer> set = new BTreeSet<>(30, intComparator);
+    Random generator = new Random(1);
+    int iterations = 1000000;
+    long memoryUsedBeforeFillingValues;
+    long memoryUsedBeforeFillingSets;
+    long memoryUsedAfterFillingJavaSet;
+    long memoryUsedAfterClearingJavaSet;
+    long memoryUsedAfterFillingBTreeSet;
+    long memoryUsedAfterClearingBTreeSet;
+
+
+    System.gc();
+
+    memoryUsedBeforeFillingValues = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+    for (int i = 0; i < iterations; i++) {
+      Integer value = generator.nextInt(0, iterations * 2);
+      values.add(value);
+    }
+    for (int i = 0; i < iterations / 2; i++) {
+      Integer value = generator.nextInt(0, iterations * 2);
+      values.remove(value);
+    }
+
+    System.gc();
+
+    memoryUsedBeforeFillingSets = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+    for (Integer value : values) {
+      javaSet.add(value);
+    }
+
+    memoryUsedAfterFillingJavaSet = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+    javaSet.clear();
+    System.gc();
+
+    memoryUsedAfterClearingJavaSet = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+    for (Integer value : values) {
+      set.add(value);
+    }
+
+    memoryUsedAfterFillingBTreeSet = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+    set.clear();
+    System.gc();
+
+    memoryUsedAfterClearingBTreeSet = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  
+
+    System.out.println("memoryUsedBeforeFillingSets: " + memoryUsedBeforeFillingSets);
+    System.out.println("memoryUsedAfterFillingJavaSet: " + memoryUsedAfterFillingJavaSet);
+    System.out.println("memoryUsedAfterClearingJavaSet: " + memoryUsedAfterClearingJavaSet);
+    System.out.println("memoryUsedAfterFillingBTreeSet: " + memoryUsedAfterFillingBTreeSet);
+    System.out.println("memoryUsedAfterClearingBTreeSet: " + memoryUsedAfterClearingBTreeSet);
+
+    System.out.println("Consumed by Java TreeSet with Integer values per key: " + (memoryUsedBeforeFillingSets - memoryUsedBeforeFillingValues) / values.size());
+    System.out.println("Consumed by Java TreeSet per key: " + (memoryUsedAfterFillingJavaSet - memoryUsedBeforeFillingSets) / values.size());
+    System.out.println("Consumed by BTreeSet per key: " + (memoryUsedAfterFillingBTreeSet - memoryUsedAfterClearingJavaSet) / values.size());
+  }
+
   private String generateRandomString(Random generator) {
     StringBuilder sb = new StringBuilder();
 
